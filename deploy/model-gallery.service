@@ -1,0 +1,29 @@
+[Unit]
+Description=Prompt Gallery API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=model-gallery
+Group=model-gallery
+WorkingDirectory=/opt/model-gallery
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=/opt/model-gallery/backend.env
+ExecStart=/usr/bin/python3 /opt/model-gallery/backend/server.py --host 127.0.0.1 --port 8766 --frontend-origin ${GALLERY_FRONTEND_ORIGIN}
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/model-gallery/data /opt/model-gallery/projects
+MemoryMax=384M
+TasksMax=64
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

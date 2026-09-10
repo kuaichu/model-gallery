@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+# Runtime data and local deployment information must never be published.
+/data/
+/projects/
+/DEPLOYMENT.md
+/backend.env
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.tar
+*.tar.gz
+*.zip
+*.log
+/dist/
+/work/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN" class="is-guest">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#292439">
+  <title>同题 · Prompt Gallery</title>
+  <script src="/theme.js?v=upload-theme-31"></script>
+  <link rel="stylesheet" href="/style.css?v=upload-theme-31">
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="同题首页">
+        <span class="brand-mark">同</span>
+        <span><b>同题</b><em>PROMPT GALLERY</em></span>
+      </a>
+      <p class="topbar-note">将相同提示词下的作品并排放置，再判断模型的差异。</p>
+      <div class="topbar-actions">
+        <button id="theme-toggle" type="button" class="text-button" aria-pressed="false">暗色模式</button>
+        <button class="text-button" type="button" id="login-button">管理员登录</button>
+        <button class="text-button" type="button" id="logout-button" data-admin-only>退出管理</button>
+        <button class="text-button" type="button" id="export-library" data-admin-only>导出资料</button>
+        <button class="primary-button" type="button" data-open-project data-admin-only>＋ 收录作品</button>
+      </div>
+    </header>
+
+    <main class="app-grid">
+      <aside class="sidebar" aria-label="提示词组">
+        <div class="sidebar-heading">
+          <span>提示词组</span>
+          <button class="round-button" type="button" data-open-group data-admin-only aria-label="新建提示词组">＋</button>
+        </div>
+        <nav id="group-list" class="group-list" aria-label="提示词组列表"></nav>
+        <div class="sidebar-foot">
+          <p>每个组保存一段统一提示词。作品从同一组开始，才适合横向比较。</p>
+        </div>
+      </aside>
+
+      <section class="workspace" aria-label="作品库">
+        <div class="workspace-head">
+          <div>
+            <p class="eyebrow" id="group-kicker">全部档案</p>
+            <h1 id="workspace-title">所有作品</h1>
+          </div>
+          <div class="workspace-summary" aria-label="当前统计">
+            <span><b id="project-count">0</b> 件作品</span>
+            <span><b id="model-count">0</b> 个模型</span>
+          </div>
+        </div>
+
+        <section class="prompt-panel" id="prompt-panel" aria-labelledby="prompt-label" hidden>
+          <div class="prompt-panel-head">
+            <span id="prompt-label">统一提示词</span>
+            <button class="text-button" type="button" id="edit-group" data-admin-only>编辑提示词</button>
+          </div>
+          <p id="prompt-text"></p>
+        </section>
+
+        <div class="toolbar">
+          <label class="search-field">
+            <span class="sr-only">搜索作品</span>
+            <input id="project-search" type="search" autocomplete="off" placeholder="搜索作品、模型或备注">
+            <span aria-hidden="true">⌕</span>
+          </label>
+          <label class="select-field model-filter-field">
+            <span class="sr-only">筛选模型系列</span>
+            <select id="filter-model"><option value="">全部模型系列</option></select>
+          </label>
+          <label class="select-field">
+            <span class="sr-only">排序方式</span>
+            <select id="sort-projects">
+              <option value="custom">自定义顺序</option>
+              <option value="newest">最近收录</option>
+              <option value="rating">按评分</option>
+              <option value="title">按名称</option>
+            </select>
+          </label>
+          <label class="select-field"><span class="sr-only">每排作品数量</span><select id="grid-columns"><option value="3">每排 3 个</option><option value="4" selected>每排 4 个</option><option value="5">每排 5 个</option><option value="6">每排 6 个</option></select></label>
+          <button class="thumbnail-toggle" id="thumbnail-toggle" type="button" aria-pressed="true">缩略图预览：开启</button>
+          <button class="compare-button" type="button" id="compare-selected" disabled>对比已选 <span>0</span></button>
+        </div>
+
+        <div class="list-label"><span>作品<span data-admin-only> · 拖动卡片右上角调整顺序</span></span><span>模型 / 评分 / 操作</span></div>
+        <div id="project-list" class="project-list" aria-live="polite"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="group-dialog" class="dialog">
+    <form id="group-form" class="form-sheet">
+      <div class="dialog-heading"><p class="eyebrow">PROMPT COHORT</p><button class="close-button" type="button" data-close-dialog aria-label="关闭">×</button></div>
+      <h2 id="group-dialog-title">新建提示词组</h2>
+      <label>提示词组名称<input name="title" maxlength="80" required placeholder="例如：Three.js 体素古建"></label>
+      <label>统一提示词<textarea name="prompt" rows="8" placeholder="记录投给每个模型的完整提示词；后续可随时补充。"></textarea></label>
+      <div class="form-actions"><button class="text-button" type="button" data-close-dialog>取消</button><button class="primary-button" type="submit">保存提示词组</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="login-dialog" class="dialog auth-dialog">
+    <form id="login-form" class="form-sheet">
+      <div class="dialog-heading"><p class="eyebrow">ADMIN ACCESS</p><button class="close-button" type="button" data-close-dialog aria-label="关闭">×</button></div>
+      <h2>管理员登录</h2>
+      <p class="auth-copy">登录后可收录、编辑、排序和导出作品。当前浏览与对比不受影响。</p>
+      <label>管理密码<input name="password" type="password" autocomplete="current-password" required autofocus></label>
+      <p id="login-error" class="form-error" role="alert" hidden></p>
+      <div class="form-actions"><button class="text-button" type="button" data-close-dialog>取消</button><button class="primary-button" type="submit">登录</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="project-dialog" class="dialog wide-dialog">
+    <form id="project-form" class="form-sheet">
+      <div class="dialog-heading"><p class="eyebrow">ADD TO ARCHIVE</p><button class="close-button" type="button" data-close-dialog aria-label="关闭">×</button></div>
+      <h2 id="project-dialog-title">收录作品</h2>
+      <input name="id" type="hidden">
+      <div class="form-grid">
+        <label>作品名称<input name="title" maxlength="100" required placeholder="例如：松庭"></label>
+        <label>使用模型<input name="model" maxlength="100" placeholder="例如：GPT-5.6 / Claude / Gemini"></label>
+        <label>模型途径<input name="modelProvider" maxlength="100" placeholder="例如：官方、OpenRouter、第三方 API"></label>
+        <label>Agent 工具<input name="agentTool" maxlength="100" placeholder="例如：Codex、Claude Code、Cursor"></label>
+        <label>思考程度<select name="reasoningEffort"><option value="">未设置</option><option value="default">default（不可调整思考模式）</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option><option value="xhigh">xhigh</option><option value="max">max</option></select></label>
+        <label>所属提示词组<select name="groupId" required></select></label>
+        <label>主观评分<select name="rating"><option value="0">未评分</option><option value="1">1 / 5</option><option value="2">2 / 5</option><option value="3">3 / 5</option><option value="4">4 / 5</option><option value="5">5 / 5</option></select></label>
+        <label>项目日期<input name="projectDate" type="date"><span class="field-hint">可留空，后续可修改。</span></label>
+        <label>完成用时（分钟）<input name="durationMinutes" type="number" min="0" step="1" placeholder="例如：5"></label>
+        <label>完成用时（秒）<input name="durationRemainder" type="number" min="0" max="59" step="1" placeholder="例如：30"><span class="field-hint">分钟和秒可只填一项；都留空表示未填写。</span></label>
+      </div>
+      <label>HTML 作品文件<input name="htmlFile" type="file" accept=".html,.htm,text/html" required></label>
+      <p id="project-file-hint" class="field-hint">上传可独立运行的 HTML 文件（UTF-8，最大 20 MB）。图片、样式和脚本应内嵌，或使用可公开访问的 HTTPS 资源。</p>
+      <p id="project-save-status" class="field-hint" role="status" aria-live="polite"></p>
+      <label>观察笔记<textarea name="notes" rows="5" maxlength="2000" placeholder="记录实现特点、完成度、你想回看时需要知道的事。"></textarea></label>
+      <div class="form-actions"><button class="text-button" type="button" data-close-dialog>取消</button><button class="primary-button" type="submit">保存作品</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="delete-dialog" class="dialog">
+    <form method="dialog" class="form-sheet">
+      <h2>移除作品</h2><p id="delete-message"></p>
+      <p class="field-hint">仅移除记录，已导入的作品文件会保留。</p>
+      <div class="form-actions"><button class="text-button" value="cancel">取消</button><button class="primary-button" value="remove">移除记录</button></div>
+    </form>
+  </dialog>
+  <dialog id="compare-dialog" class="dialog compare-dialog">
+    <div class="form-sheet comparison-sheet">
+      <div class="single-toolbar">
+        <div class="single-heading"><strong id="single-name"></strong><span id="single-model"></span></div>
+        <select id="single-sizing" aria-label="预览尺寸"><option value="fit">适应窗口</option><option value="native">原生页面</option></select>
+        <button id="single-info-toggle" class="text-button" type="button" aria-expanded="false" aria-controls="single-info">作品信息</button>
+        <a id="single-open" target="_blank" rel="noopener noreferrer">单独打开 ↗</a>
+        <button class="close-button" type="button" data-close-dialog aria-label="关闭作品预览">×</button>
+      </div>
+      <div id="single-info" class="single-info" hidden></div>
+      <div class="dialog-heading"><p class="eyebrow">SIDE BY SIDE</p><button class="close-button" type="button" data-close-dialog aria-label="关闭">×</button></div>
+      <div class="compare-title"><h2>同题对比</h2><p id="compare-group-name"></p></div>
+      <div class="split-toolbar" id="split-toolbar" hidden>
+        <label class="sync-switch"><input id="sync-camera" type="checkbox" role="switch" aria-label="联动视角"><span class="switch-track" aria-hidden="true"></span><span>联动视角 <strong id="sync-switch-label">已关闭</strong></span></label>
+        <button class="text-button" id="align-camera" type="button" disabled>以左侧对齐</button>
+        <span id="sync-status" role="status">正在连接作品视角…</span>
+        <small>拖动旋转 · 滚轮缩放 · 右键平移</small>
+      </div>
+      <div id="comparison-grid" class="comparison-grid"></div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/config.js"></script>
+  <script src="/app.js?v=upload-theme-31" defer></script>
+</body>
+</html>
