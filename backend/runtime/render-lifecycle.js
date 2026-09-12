@@ -4,9 +4,80 @@
   const request = window.requestAnimationFrame.bind(window);
   const cancel = window.cancelAnimationFrame.bind(window);
   const pending = new Map();
+  const nativeSetTimeout = window.setTimeout.bind(window);
+  const nativeClearTimeout = window.clearTimeout.bind(window);
+  const nativeSetInterval = window.setInterval.bind(window);
+  const nativeClearInterval = window.clearInterval.bind(window);
+  const timers = new Map();
+  let timerSequence = 0;
   const pausedAnimations = new Set();
   const pausedSVGs = new Set();
   let paused = false, sequence = 0;
+
+  function delayValue(value) {
+    const delay = Number(value);
+    return Number.isFinite(delay) ? Math.max(0, delay) : 0;
+  }
+  function armTimeout(token, timer) {
+    timer.startedAt = performance.now();
+    timer.dueAt = timer.startedAt + timer.remaining;
+    timer.nativeId = nativeSetTimeout(() => {
+      timer.nativeId = null;
+      timers.delete(token);
+      if (!paused) timer.callback(...timer.args);
+    }, timer.remaining);
+  }
+  function armInterval(timer) {
+    timer.nativeId = nativeSetInterval(() => {
+      if (!paused) timer.callback(...timer.args);
+    }, timer.delay);
+  }
+  function pauseTimers() {
+    const now = performance.now();
+    for (const timer of timers.values()) {
+      if (timer.nativeId == null) continue;
+      if (timer.kind === 'timeout') {
+        timer.remaining = Math.max(0, timer.dueAt - now);
+        nativeClearTimeout(timer.nativeId);
+      } else nativeClearInterval(timer.nativeId);
+      timer.nativeId = null;
+    }
+  }
+  function resumeTimers() {
+    for (const [token, timer] of timers) {
+      if (timer.nativeId != null) continue;
+      if (timer.kind === 'timeout') armTimeout(token, timer);
+      else armInterval(timer);
+    }
+  }
+  window.setTimeout = (callback, delay, ...args) => {
+    if (typeof callback !== 'function') return nativeSetTimeout(callback, delay, ...args);
+    const token = ++timerSequence;
+    const timer = {kind:'timeout', callback, args, remaining:delayValue(delay), nativeId:null, dueAt:0};
+    timers.set(token, timer);
+    if (!paused) armTimeout(token, timer);
+    return token;
+  };
+  window.clearTimeout = token => {
+    const timer = timers.get(token);
+    if (!timer) return nativeClearTimeout(token);
+    if (timer.nativeId != null) (timer.kind === 'interval' ? nativeClearInterval : nativeClearTimeout)(timer.nativeId);
+    timers.delete(token);
+  };
+  window.setInterval = (callback, delay, ...args) => {
+    if (typeof callback !== 'function') return nativeSetInterval(callback, delay, ...args);
+    const token = ++timerSequence;
+    const timer = {kind:'interval', callback, args, delay:delayValue(delay), nativeId:null};
+    timers.set(token, timer);
+    if (!paused) armInterval(timer);
+    return token;
+  };
+  window.clearInterval = token => {
+    const timer = timers.get(token);
+    if (!timer) return nativeClearInterval(token);
+    if (timer.nativeId != null) (timer.kind === 'timeout' ? nativeClearTimeout : nativeClearInterval)(timer.nativeId);
+    timers.delete(token);
+  };
   function pauseVisualAnimations() {
     if (!paused) return;
     for (const animation of document.getAnimations?.() || []) {
@@ -61,10 +132,12 @@
     paused = next;
     if (paused) {
       pauseVisualAnimations();
+      pauseTimers();
       visualObserver.observe(document.documentElement, {childList:true, subtree:true, attributes:true, attributeFilter:['class','style']});
     } else {
       visualObserver.disconnect();
       resumeVisualAnimations();
+      resumeTimers();
     }
     for (const [id, item] of pending) {
       if (paused) {

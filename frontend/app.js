@@ -294,14 +294,9 @@
         frame.style.transform = 'none';
         continue;
       }
-      // Thumbnails do not need a full 1280px rendering surface. Keeping the
-      // iframe viewport close to the card size avoids making WebGL/canvas
-      // works render several times more pixels than are actually displayed.
-      const width = Math.min(480, Math.max(320, Math.round(target.clientWidth * 1.5)));
-      const height = Math.round(width * 0.625);
-      const scale = target.clientWidth / width;
-      frame.style.width = `${width}px`;
-      frame.style.height = `${height}px`;
+      const scale = target.clientWidth / 1280;
+      frame.style.width = '1280px';
+      frame.style.height = '800px';
       frame.style.transform = `scale(${scale})`;
     }
   });
