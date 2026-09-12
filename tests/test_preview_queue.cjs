@@ -8,7 +8,7 @@ function make(id,top=10,split=false,managed=true){
  const f={id,isConnected:true,dataset:{previewSrc:'https://api.example.com/projects/'+id+'/index.html',managed:String(managed)},parentElement:wrapper,contentWindow:{postMessage:m=>messages.push({id,...m})},closest:s=>s==='#comparison-grid'?(split?{}:null):(split?null:owner),getAttribute:k=>attrs[k],removeAttribute:k=>delete attrs[k],addEventListener:(name,fn)=>listeners[name]=fn,removeEventListener:name=>delete listeners[name],set src(v){attrs.src=v;starts.push(id)},load(){listeners.load?.()},owner,status};return f;
 }
 let handler;
-const ctx={elements:{projectList:{querySelectorAll:()=>cards.filter(f=>!f.getAttribute('src'))},comparisonGrid:{querySelectorAll:()=>comparisons.filter(f=>!f.getAttribute('src'))},compareDialog:{open:false},projectDialog:{open:false},groupDialog:{open:false},loginDialog:{open:false}},document:{hidden:false,querySelectorAll:()=>[...cards,...comparisons]},navigator:{onLine:true},location:{protocol:'https:'},URL,innerWidth:1200,innerHeight:800,thumbnailsEnabled:true,restoringView:false,$:()=>({open:false}),IntersectionObserver:class{observe(){}unobserve(){}},window:{addEventListener:(type,fn)=>{handler=fn}},requestAnimationFrame:()=>1,updateSyncStatus(){},setTimeout:(fn,ms)=>{timers.set(++nextTimer,{fn,ms});return nextTimer},clearTimeout:id=>timers.delete(id)};
+const ctx={elements:{projectList:{querySelectorAll:()=>cards.filter(f=>!f.getAttribute('src'))},comparisonGrid:{querySelectorAll:()=>comparisons.filter(f=>!f.getAttribute('src'))},compareDialog:{open:false},projectDialog:{open:false},groupDialog:{open:false},loginDialog:{open:false}},document:{hidden:false,querySelectorAll:()=>[...cards,...comparisons]},navigator:{onLine:true},location:{protocol:'https:'},URL,innerWidth:1200,innerHeight:800,thumbnailsEnabled:true,restoringView:false,$:()=>({open:false,setAttribute(){},textContent:'',title:''}),IntersectionObserver:class{observe(){}unobserve(){}},window:{addEventListener:(type,fn)=>{handler=fn}},requestAnimationFrame:()=>1,updateSyncStatus(){},setTimeout:(fn,ms)=>{timers.set(++nextTimer,{fn,ms});return nextTimer},clearTimeout:id=>timers.delete(id)};
 vm.createContext(ctx);
 vm.runInContext(js.slice(js.indexOf('  const PREVIEW_TIMEOUT ='),js.indexOf('  const splitFrames =')),ctx);
 async function settle(){await Promise.resolve();await Promise.resolve()}
@@ -31,5 +31,9 @@ const ack=f=>handler({source:f.contentWindow,data:{channel:'prompt-gallery-rende
  ctx.elements.compareDialog.open=false;cards=[make('h')];assert.equal(ctx.nextCardPreview(),null,'thumbnail toggle preserved');
  ctx.thumbnailsEnabled=true;ctx.navigator.onLine=false;assert.equal(ctx.nextCardPreview(),null);ctx.navigator.onLine=true;
  cards[0].dataset.previewSrc='http://external.example.com/';running=ctx.queueCardPreviews();await running;assert.equal(cards[0].dataset.failed,'true');assert(!starts.includes('h'),'HTTPS mixed content never navigated');
+ cards=[make('i',20)];comparisons=[];starts=[];timers.clear();ctx.document.hidden=false;ctx.restoringView=false;
+ ctx.scheduleViewportUpdate();assert.deepEqual(starts,[],'scroll updates must not start a preview immediately');
+ const idle=[...timers.entries()].find(([id,t])=>t.ms===160);assert(idle,'scroll idle timer should be scheduled');timers.delete(idle[0]);idle[1].fn();await settle();
+ assert.deepEqual(starts,['i'],'preview starts only after scrolling becomes idle');ack(cards[0]);await gap();
  console.log('PASS: serial viewport priority, managed load acknowledgement, timeout/retry, visibility pause, serialized split, toggle/offline and HTTPS handling');
 })().catch(e=>{console.error(e);process.exitCode=1});
