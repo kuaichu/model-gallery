@@ -106,8 +106,6 @@
   let loadingPreview = false;
   let activePreviewLoad = null;
   let viewportTick = 0;
-  let viewportIdleTimer = null;
-  let viewportScrolling = false;
   const observedCards = new Set();
   const renderStates = new WeakMap();
 
@@ -206,7 +204,7 @@
   }
   function configureRendering(frame) {
     const comparison = frame.closest('#comparison-grid');
-    const paused = document.hidden || editingData() || (comparison ? !elements.compareDialog.open : viewportScrolling || !thumbnailsEnabled || elements.compareDialog.open || !cardInViewport(frame));
+    const paused = document.hidden || editingData() || (comparison ? !elements.compareDialog.open : !thumbnailsEnabled || elements.compareDialog.open || !cardInViewport(frame));
     if (renderStates.get(frame) === !!paused) return;
     renderStates.set(frame, !!paused);
     frame.contentWindow?.postMessage({channel:'prompt-gallery-render-v1', type:'configure', paused:!!paused}, '*');
@@ -215,15 +213,9 @@
     if (activePreviewLoad && (!activePreviewLoad.frame.isConnected || activePreviewLoad.frame.closest('.project-card')?.hidden || (activePreviewLoad.frame.closest('#comparison-grid') && !elements.compareDialog.open))) activePreviewLoad.finish('cancelled');
     document.querySelectorAll('.preview-frame iframe, .comparison-preview iframe').forEach(configureRendering);
     updateThumbnailToggle();
-    if (!viewportScrolling) queueCardPreviews();
+    queueCardPreviews();
   }
   function scheduleViewportUpdate() {
-    viewportScrolling = true;
-    clearTimeout(viewportIdleTimer);
-    viewportIdleTimer = setTimeout(() => {
-      viewportScrolling = false;
-      updateRendering();
-    }, 160);
     if (viewportTick) return;
     viewportTick = requestAnimationFrame(() => { viewportTick = 0; updateRendering(); });
   }
@@ -294,14 +286,9 @@
         frame.style.transform = 'none';
         continue;
       }
-      // Thumbnails do not need a full 1280px rendering surface. Keeping the
-      // iframe viewport close to the card size avoids making WebGL/canvas
-      // works render several times more pixels than are actually displayed.
-      const width = Math.min(480, Math.max(320, Math.round(target.clientWidth * 1.5)));
-      const height = Math.round(width * 0.625);
-      const scale = target.clientWidth / width;
-      frame.style.width = `${width}px`;
-      frame.style.height = `${height}px`;
+      const scale = target.clientWidth / 1280;
+      frame.style.width = '1280px';
+      frame.style.height = '800px';
       frame.style.transform = `scale(${scale})`;
     }
   });
